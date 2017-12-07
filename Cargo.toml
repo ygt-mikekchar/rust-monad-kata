@@ -1,0 +1,6 @@
+[package]
+name = "rust-monad-kata"
+version = "0.1.0"
+authors = ["Mike Charlton <mike.charlton@yourgolftravel.com>"]
+
+[dependencies]
