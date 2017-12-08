@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -19,6 +18,5 @@ mod tests {
 type Seed = u32;
 
 fn rand(seed: Seed) -> (u32, Seed) {
-  return (seed, seed + 1);
+  (seed, seed + 1)
 }
-
