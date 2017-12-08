@@ -28,12 +28,40 @@ mod tests {
     fn test_three_rand_letters() {
         assert_eq!(three_rand_letters(), "abc");
     }
+
+    #[test]
+    fn test_even_rands() {
+        assert_eq!(rand_even(3), (6, 4));
+    }
+
+    #[test]
+    fn test_odd_rands() {
+        assert_eq!(rand_odd(3), (7, 4));
+    }
 }
 
 type Seed = u32;
 
-fn rand(seed: Seed) -> (u32, Seed) {
-  (seed, seed + 1)
+type Rand<T> = (T, Seed);
+
+fn rand_map<A, B>(f: fn(A) -> B, rand: Rand<A>) -> Rand<B> {
+    (f(rand.0), rand.1)
+}
+
+fn rand(seed: Seed) -> Rand<u32> {
+    (seed, seed + 1)
+}
+
+fn rand_even(seed: Seed) -> Rand<u32> {
+    rand_map(|val| val * 2, rand(seed))
+}
+
+fn rand_odd(seed: Seed) -> Rand<u32> {
+    rand_map(|val| val * 2 + 1, rand(seed))
+}
+
+fn rand_letter(seed: Seed) -> Rand<char> {
+    rand_map(|val| i_to_a(val), rand(seed))
 }
 
 fn i_to_a(val: u32) -> char {
@@ -42,11 +70,6 @@ fn i_to_a(val: u32) -> char {
         Some(r) => r,
         None => '\0'
     }
-}
-
-fn rand_letter(seed: Seed) -> (char, Seed) {
-    let (val, new_seed) = rand(seed);
-    (i_to_a(val), new_seed)
 }
 
 fn five_rands() -> Vec<u32> {
