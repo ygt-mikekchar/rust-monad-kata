@@ -9,10 +9,10 @@ many languages and I wanted to have a go at trying it with Rust.  My
 normal approach differs slightly from the original challenge, so I
 will document the steps that I suggest for Rust.
 
-Note: I suspect that completing this kata is impossible with the
-stable compiler (still working on it myself).  However, discovering
-*why* it is impossible will teach you a lot about Rust and is
-very much worthwhile IMHO.
+Note: I think that everything in this kata so far can be done
+with the stable compiler.  It would be nice to implement `apply`
+and use it for `sequence`, but I suspect it is currently
+impossible.  I will update this kata as I learn more.
 
 ## Pseudo-Random Number Generation
 
@@ -265,24 +265,66 @@ container?  As it happens, it is.  You can happily implement `map` for
 There is an unfortunate caveat here: `map` is supposed to take a
 container, take out the contents, apply a function and then put the
 result back into the same kind of container.  `Gen<T>` is the
-container and is a function, but we've seen that Rust functions can not return
-a function.  It can only return a boxed closure.  This is not the same
-type.  We'll roll with it, but this may eventually cause us problems.
+container and is a function, but we've seen that Rust functions can
+not return a function.  It can only return a boxed closure.  This is
+not the same type.  We'll roll with it, but this may eventually cause
+us problems.
 
 ### Step 13. Working with Pairs
 
 It would be nice to build pairs of random values, but not just in a
 tuple.  For example, making a pair of random values in a `String`.
 
-  - Write a function `gen_map2` that allows you to do this.
+  - Write a function `gen_lift2` that allows you to do this.
 
-Hint: It's just like `gen_map`, but with 2 `Gen<T>` values instead of
-one.
+Hint: It's very similar to `gen_map`, but with 2 `Gen<T>` values
+instead of one.
 
-Warning: It will be *very* tempting to use `gen_map` in your
-implementation.  Feel free to try if you *really* want to understand
-the details of the various closure types in Rust.  I think it's
-actually impossible in the current stable version of the compiler.
+Note: It will be very tempting to implement this function using
+`gen_map`, but for now resist that temptation.
+
+#### Side Tour. Applicative Functors
+
+At this point I would *really* like to introduce the applicative
+functor.  Unfortunately, I think it is probably impossible to
+implement using the stable version of the Rust compiler.  But because
+I am a Rust novice, it is very possible that I'm wrong and I will
+write the details here for anyone who is interested in trying.
+
+`gen_lift2` is very similar to `gen_map`, but combines the output of 2
+`Gen<T>`s into one.  The function you pass to `gen_lift2` has a type
+signature of `fn(A, B) -> C`.  As I mentioned in the warning earlier,
+it's very tempting to use `gen_map` in the implementation.  `gen_map`
+uses a function with a signature of `fn(A) -> B`, though.  How do you
+convert from one to the other.
+
+In a more usual functional language, you would simply "curry" the
+value.  For example, if I am supposed to call a function like
+`my_func(a, b)`, I can "partially apply" the function by passing only
+the first parameter.  The result is a function that takes the second
+parameter. In other words, I can do `my_func(a)(b)` and it will have
+the same output.
+
+Let's say that I am writing `gen_lift2` and I just naively pass the
+incoming function directly to `gen_map`. Assume `f: Fn(A, B) -> C`,
+`ga: Gen<A>` and `gb: Gen<B>`.  So ideally, what would `gen_map(f, ga)`
+return?
+
+In an ideal world, it would return `Gen<Fn(B) -> C>` because it would
+just partially apply the first parameter to the function and return a
+new function wrapped in a `Gen`.
+
+What we need now is a function that can apply the *second* (and
+potentially subsequent) parameters to the function.  That function is
+called `apply`.  If you can write `apply` for your functor, then you
+have an "applicative functor".  Surprisingly, not all functors are
+applicative.  In fact, `Rand` is an example of a functor that is not
+applicative.
+
+  - Write a function `gen_apply` that takes a `Gen<Fn(A) -> B>` and
+    a `Gen<A>` and returns `B`.
+  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  This is
+    likely impossible.
 
 ### Step 14. Vectors of Generators
 
@@ -290,12 +332,52 @@ Being able to generate a pair of random values is slightly useful.
 However, we really want to be able to generate an arbitrarily sized
 vector of random values.  What would be nice is:
 
-  - Write a function, rep_random, that takes a `Vec` of `Gen<T>` and generates a
-    `Gen<Vec<T>>`.  In orther words it takes a vector of generators
-    and returns a Generator that gives you a random vector of values.
+  - Write a function, `gen_sequence`, that takes a `Vec` of `Gen<T>` and
+    generates a `Gen<Vec<T>>`.  In orther words it takes a vector of
+    generators and returns a Generator that gives you a random vector
+    of values.
 
 As a usage example:
 ```
   let gs = vec![rand, rand, rand, rand, rand];
-  assert_eq!(vec![1, 2, 3, 4, 5], rep_random(gs)(1).0);
+  assert_eq!(vec![1, 2, 3, 4, 5], gen_sequence(gs)(1).0);
 ```
+
+#### Side Tour. With `apply`
+
+If you implemented `gen_apply`, try to implement `gen_sequence` using
+it.  Again, this is likely impossible.
+
+### Step 15. On our way to a Monad
+
+You may think the battle has been won at this point, and you are
+correct.  It is now easy to do what we wanted to do.  However, there
+are a few things to clean up.
+
+When you implemented `gen_sequence` you will have had to deal with the
+case where the vector passed to the function is empty (you *did* handle
+that didn't you?).  In that case you will have had to make a `Gen`
+that held an empty array.  This is a situation that comes up
+frequently.
+
+  - Write a function called `gen_pure` that takes any `A` and returns
+    a `Gen<A>`.  Note: historically `pure` has gone by many names
+    (`unit` and `return` being the most popular).  I think most people
+    are settling on the name `pure` these days, so that's what I chose
+    for this kata.
+
+### Step 16. Chaining functions
+
+Note: This section needs some work to make it more obvious why you
+want to do this.
+
+Recall the generators `rand_even` and `rand_odd`.  They are almost the
+same.  One of them applies the function `x * 2` and the other applies
+the function `x * 2 + 1`.  It would be interesting to define one in
+terms of the other.
+
+  - Write a function called `gen_bind` that takes a `Gen<A>`
+    and a `Fn(A -> Gen<B>)` and returns a `Gen<B>`.
+  - Make a trait called `Monad` that requires `bind` and `pure` and
+    give `Gen<T>` that trait.
+  - Implement `rand_odd` usinging `rand_even` and `bind`
