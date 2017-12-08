@@ -1,0 +1,4 @@
+[root]
+name = "rust-monad-kata"
+version = "0.1.0"
+
