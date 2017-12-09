@@ -41,11 +41,19 @@ mod tests {
 }
 
 type Seed = u32;
-
 type Rand<T> = (T, Seed);
 
-fn rand_map<A, B>(f: fn(A) -> B, rand: Rand<A>) -> Rand<B> {
-    (f(rand.0), rand.1)
+trait Functor<A, B> {
+    type Output;
+
+    fn map(self, f: fn(A) -> B) -> Self::Output;
+}
+
+impl<A, B> Functor<A, B> for Rand<A> {
+    type Output = Rand<B>;
+    fn map(self, f: fn(A) -> B) -> Self::Output {
+        (f(self.0), self.1)
+    }
 }
 
 fn rand(seed: Seed) -> Rand<u32> {
@@ -53,15 +61,15 @@ fn rand(seed: Seed) -> Rand<u32> {
 }
 
 fn rand_even(seed: Seed) -> Rand<u32> {
-    rand_map(|val| val * 2, rand(seed))
+    rand(seed).map(|val| val * 2)
 }
 
 fn rand_odd(seed: Seed) -> Rand<u32> {
-    rand_map(|val| val * 2 + 1, rand(seed))
+    rand(seed).map(|val| val * 2 + 1)
 }
 
 fn rand_letter(seed: Seed) -> Rand<char> {
-    rand_map(|val| i_to_a(val), rand(seed))
+    rand(seed).map(|val| i_to_a(val))
 }
 
 fn i_to_a(val: u32) -> char {
