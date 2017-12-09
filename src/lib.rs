@@ -38,10 +38,16 @@ mod tests {
     fn test_odd_rands() {
         assert_eq!(rand_odd(3), (7, 4));
     }
+
+    #[test]
+    fn test_rand_pair() {
+        assert_eq!(rand_pair(4), (('d', 5), 6));
+    }
 }
 
 type Seed = u32;
 type Rand<T> = (T, Seed);
+type Gen<T> = fn(Seed) -> Rand<T>;
 
 trait Functor<A, B> {
     type Output;
@@ -70,6 +76,20 @@ fn rand_odd(seed: Seed) -> Rand<u32> {
 
 fn rand_letter(seed: Seed) -> Rand<char> {
     rand(seed).map(|val| i_to_a(val))
+}
+
+fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
+    general_pair(rand_letter, rand)(seed)
+}
+
+fn general_pair<'a, A, B>(gena: Gen<A>, genb: Gen<B>) -> Box<'a + Fn(Seed) -> Rand<(A, B)>>
+    where A: 'a,
+          B: 'a {
+    Box::new(move |seed| {
+        let (c, s1) = gena(seed);
+        let (i, s2) = genb(s1);
+        ((c, i), s2)
+    })
 }
 
 fn i_to_a(val: u32) -> char {
