@@ -280,6 +280,11 @@ not return a function.  It can only return a boxed closure.  This is
 not the same type.  We'll roll with it, but this may eventually cause
 us problems.
 
+Spoiler #1: Once you get the trait written you will find that it does
+not work.  That's because Rust does not do type inference on
+functions.  This is very unfortunate, but you can solve the problem by
+doing something lie `(rand as Gen<u32>).map(...)`.
+
 ### Step 13. Working with Pairs
 
 It would be nice to build pairs of random values, but not just in a

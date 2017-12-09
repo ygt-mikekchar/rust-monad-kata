@@ -49,16 +49,32 @@ type Seed = u32;
 type Rand<T> = (T, Seed);
 type Gen<T> = fn(Seed) -> Rand<T>;
 
-trait Functor<A, B> {
+trait Functor<'a, A, B> {
     type Output;
 
     fn map(self, f: fn(A) -> B) -> Self::Output;
 }
 
-impl<A, B> Functor<A, B> for Rand<A> {
+impl<'a, A, B> Functor<'a, A, B> for Rand<A>
+    where A: 'a,
+          B: 'a {
     type Output = Rand<B>;
+
     fn map(self, f: fn(A) -> B) -> Self::Output {
         (f(self.0), self.1)
+    }
+}
+
+impl<'a, A, B> Functor<'a, A, B> for Gen<A>
+    where A: 'a,
+          B: 'a {
+    type Output = Box<'a + Fn(Seed) -> Rand<B>>;
+
+    fn map(self, f: fn(A) -> B) -> Self::Output {
+        Box::new(move |seed| {
+            let (val, new_seed) = self(seed);
+            (f(val), new_seed)
+        })
     }
 }
 
@@ -67,15 +83,15 @@ fn rand(seed: Seed) -> Rand<u32> {
 }
 
 fn rand_even(seed: Seed) -> Rand<u32> {
-    rand(seed).map(|val| val * 2)
+    (rand as Gen<u32>).map(|val| val * 2)(seed)
 }
 
 fn rand_odd(seed: Seed) -> Rand<u32> {
-    rand(seed).map(|val| val * 2 + 1)
+    (rand as Gen<u32>).map(|val| val * 2 + 1)(seed)
 }
 
 fn rand_letter(seed: Seed) -> Rand<char> {
-    rand(seed).map(|val| i_to_a(val))
+    (rand as Gen<u32>).map(|val| i_to_a(val))(seed)
 }
 
 fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
