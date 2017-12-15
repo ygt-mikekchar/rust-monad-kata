@@ -337,7 +337,7 @@ applicative.  In fact, `Rand` is an example of a functor that is not
 applicative.
 
   - Write a function `gen_apply` that takes a `Gen<Fn(A) -> B>` and
-    a `Gen<A>` and returns `B`.
+    a `Gen<A>` and returns `Gen<B>`.
   - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  This is
     likely impossible.
 

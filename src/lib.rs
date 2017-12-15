@@ -78,6 +78,24 @@ impl<'a, A, B> Functor<'a, A, B> for Gen<A>
     }
 }
 
+fn gen_apply<'a, A, B>(genf: Box<'a + Fn(Seed) -> Rand<fn(A) -> B>>, gena: Gen<A>) -> Box<'a + Fn(Seed) -> Rand<B>>
+    where A: 'a,
+          B: 'a {
+    Box::new(move |seed| {
+        let (a, s1) = gena(seed);
+        let (f, s2) = genf(s1);
+        (f(a), s2)
+    })
+}
+
+fn gen_lift2<'a, A, B, C>(f: fn(A, B) -> C, gena: Gen<A>, genb: Gen<B>) -> Box<'a + Fn(Seed) -> Rand<C>>
+    where A: 'a,
+          B: 'a,
+          C: 'a {
+    let genf = (gena as Gen<A>).map(|a| { |b| f(a, b) });
+    gen_apply(genf, genb)
+}
+
 fn rand(seed: Seed) -> Rand<u32> {
     (seed, seed + 1)
 }
@@ -95,17 +113,7 @@ fn rand_letter(seed: Seed) -> Rand<char> {
 }
 
 fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
-    general_pair(rand_letter, rand)(seed)
-}
-
-fn general_pair<'a, A, B>(gena: Gen<A>, genb: Gen<B>) -> Box<'a + Fn(Seed) -> Rand<(A, B)>>
-    where A: 'a,
-          B: 'a {
-    Box::new(move |seed| {
-        let (c, s1) = gena(seed);
-        let (i, s2) = genb(s1);
-        ((c, i), s2)
-    })
+    gen_lift2(|a, b| (a, b), rand_letter, rand)(seed)
 }
 
 fn i_to_a(val: u32) -> char {
