@@ -12,7 +12,11 @@ will document the steps that I suggest for Rust.
 Note: I think that everything in this kata so far can be done
 with the stable compiler.  It would be nice to implement `apply`
 and use it for `sequence`, but I suspect it is currently
-impossible.  I will update this kata as I learn more.
+impossible.  I will update this kata as I learn more.  "Higher order
+types", which is what we are doing in this kata is a well known pain
+point in Rust.  I didn't know this before I started along this path,
+but even still I think this is a great exercise for discovering both
+the good things about Rust and the limitations.
 
 ## Pseudo-Random Number Generation
 
@@ -152,15 +156,13 @@ container.
 We're going to implement a `Rand` functor on tuples like
 `(uint32, Seed)` and make it a trait called `Functor`.
 
-Note: I haven't done this yet, so the instructions may be subtly
-wrong.
-
   - Make a type called `Rand` for a tuple that contains an unsigned
     32 bit integer and a `Seed`.
   - Write a function called `rand_map`.  It should have the following
     type signature: `fn rand_map(fn(uint32) -> uint32, Rand) -> Rand`
   - Make a trait called `Functor` with a `map` function and implement
-    this function with `rand_map`.
+    this function with the code from `rand_map` (you can delete `rand_map`
+	afterwards).
   - Use the `map` functionality in `rand_even` and `rand_odd`.
 
 ### Step 7. What about `rand_letter`?
@@ -182,10 +184,11 @@ Because of what you discovered in Step 7, you can't write a single
 trait for Rand and RandLetter without using parametric types.
 
   - Refactor `Rand` and `RandLetter` into one type `Rand<T>`.
-  - Use `Rand<T>` in your implementation of `map`
+  - Make a `Functor` implementation for `Rand<T>`
+  - Implement `rand_letter` using `map`.
 
 Note: If you look at the documentation, every example sends a
-reference from `self` (i.e. `&self` into the functions.  If you do
+reference from `self` (i.e. `&self`) into the functions.  If you do
 that, you will have to worry about lifetimes.  Because we are only
 using data types with the `Copy` trait, save yourself lots of trouble
 and use `self` so that it copies the values rather than moving them.
@@ -283,7 +286,7 @@ us problems.
 Spoiler #1: Once you get the trait written you will find that it does
 not work.  That's because Rust does not do type inference on
 functions.  This is very unfortunate, but you can solve the problem by
-doing something lie `(rand as Gen<u32>).map(...)`.
+casting the generator like `(rand as Gen<u32>).map(...)`.
 
 ### Step 13. Working with Pairs
 
@@ -338,7 +341,7 @@ applicative.
 
   - Write a function `gen_apply` that takes a `Gen<Fn(A) -> B>` and
     a `Gen<A>` and returns `Gen<B>`.
-  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  This is
+  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  Note: This is
     likely impossible.
 
 ### Step 14. Vectors of Generators
