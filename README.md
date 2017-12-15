@@ -12,7 +12,11 @@ will document the steps that I suggest for Rust.
 Note: I think that everything in this kata so far can be done
 with the stable compiler.  It would be nice to implement `apply`
 and use it for `sequence`, but I suspect it is currently
-impossible.  I will update this kata as I learn more.
+impossible.  I will update this kata as I learn more.  "Higher order
+types", which is what we are doing in this kata is a well known pain
+point in Rust.  I didn't know this before I started along this path,
+but even still I think this is a great exercise for discovering both
+the good things about Rust and the limitations.
 
 ## Pseudo-Random Number Generation
 
@@ -152,15 +156,13 @@ container.
 We're going to implement a `Rand` functor on tuples like
 `(uint32, Seed)` and make it a trait called `Functor`.
 
-Note: I haven't done this yet, so the instructions may be subtly
-wrong.
-
   - Make a type called `Rand` for a tuple that contains an unsigned
     32 bit integer and a `Seed`.
   - Write a function called `rand_map`.  It should have the following
     type signature: `fn rand_map(fn(uint32) -> uint32, Rand) -> Rand`
   - Make a trait called `Functor` with a `map` function and implement
-    this function with `rand_map`.
+    this function with the code from `rand_map` (you can delete `rand_map`
+	afterwards).
   - Use the `map` functionality in `rand_even` and `rand_odd`.
 
 ### Step 7. What about `rand_letter`?
@@ -172,20 +174,24 @@ only have a single type.
   - Create a `map` implementation for it
   - Refactor `rand_letter` to use that implementation.
 
+Note: This is impossible.  Why?
+
 ### Step 8. Parametric Polymorphism
 
 Raise your hand if you think CS has the *best* jargon of any field!
 
-Basically it sucks that we have to make a separate implementation of
-`map` for both `Rand` and `RandLetter`.  They probably look basically
-identical.  The only difference should be in the types being used.
-Luckily we can use "Parametric Polymorphism" to refactor this into one
-function.
+Because of what you discovered in Step 7, you can't write a single
+trait for Rand and RandLetter without using parametric types.
 
   - Refactor `Rand` and `RandLetter` into one type `Rand<T>`.
-  - Use `Rand<T>` in your implementation of `map`
-  - Note to self: How does that affect the trait?  Can you have traits
-    for parametric types?
+  - Make a `Functor` implementation for `Rand<T>`
+  - Implement `rand_letter` using `map`.
+
+Note: If you look at the documentation, every example sends a
+reference from `self` (i.e. `&self`) into the functions.  If you do
+that, you will have to worry about lifetimes.  Because we are only
+using data types with the `Copy` trait, save yourself lots of trouble
+and use `self` so that it copies the values rather than moving them.
 
 ### Step 9. Generating Random Pairs
 
@@ -219,7 +225,7 @@ doesn't have to actually calculate everything immediately.
     closure that takes a `Seed` as a parameter.  `rand_pair` should
     look something like: `general_pair(rand_letter, rand)(seed)`.
 
-Spoiler: For very good reasons, Rust implements functions and closures
+Spoiler #1: For very good reasons, Rust implements functions and closures
 differently.  The type of a function is `fn(...) -> ...` The type of a
 closure is `Fn(...) -> ...`.  When Rust returns a value from a
 function, it uses the memory allocated on the stack in the calling
@@ -235,7 +241,14 @@ it will deallocate the memory for the closure.  Since a smart pointer
 has a defined size, you can do this.
 
 To do this you need to create a `Box` for the closure.  The return
-type becomes `Box<Fn(...) -> ...>`.
+type becomes something like (but not exactly like) `Box<Fn(...) -> ...>`.
+
+Spoiler #2: The final boxed function closes over the parameters sent
+to `general_pair`.  In that way it is also a container.  The problem
+that you will probably find is that the compiler complains about
+lifetimes of objects.  Somehow you have to link the lifetime of the
+returned `Box` to the lifetimes of the `Gen<A>` and `Gen<B>` that you
+are passing to the function.
 
 ### Step 12. An Inconvenient Truth
 
@@ -255,8 +268,8 @@ refactor our code to use `Gen<T>` instead of `Rand<T>` it will improve
 things dramatically.
 
 But is `Gen<T>` a functor?  What does that mean?  Is a function a
-container?  As it happens, it is.  You can happily implement `map` for
-`Gen<T>`.
+container?  As we saw in step 11, it is!  It contains the values that
+it closes over.  You can happily implement `map` for `Gen<T>`.
 
   - Add the `Functor` trait to `Gen<T>` by implementing `map` for it.
   - Rewrite `rand_letter`, `rand_even` and `rand_odd` to use `map` on
@@ -269,6 +282,11 @@ container and is a function, but we've seen that Rust functions can
 not return a function.  It can only return a boxed closure.  This is
 not the same type.  We'll roll with it, but this may eventually cause
 us problems.
+
+Spoiler #1: Once you get the trait written you will find that it does
+not work.  That's because Rust does not do type inference on
+functions.  This is very unfortunate, but you can solve the problem by
+casting the generator like `(rand as Gen<u32>).map(...)`.
 
 ### Step 13. Working with Pairs
 
@@ -322,8 +340,8 @@ applicative.  In fact, `Rand` is an example of a functor that is not
 applicative.
 
   - Write a function `gen_apply` that takes a `Gen<Fn(A) -> B>` and
-    a `Gen<A>` and returns `B`.
-  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  This is
+    a `Gen<A>` and returns `Gen<B>`.
+  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  Note: This is
     likely impossible.
 
 ### Step 14. Vectors of Generators
