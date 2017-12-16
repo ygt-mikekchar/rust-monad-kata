@@ -201,6 +201,9 @@ a tuple like the following: `((char, uint32), Seed)`.  For example,
 to use the seed in the return value from `rand_letter` as the seed
 in `rand`.
 
+Note: It will be very tempting to implement this function using
+`gen_map`, but for now resist that temptation.
+
 ### Step 10. Generator Types
 
 It would be nice to be able to output pairs of any kind of type.
@@ -297,9 +300,6 @@ tuple.  For example, making a pair of random values in a `String`.
 
 Hint: It's very similar to `gen_map`, but with 2 `Gen<T>` values
 instead of one.
-
-Note: It will be very tempting to implement this function using
-`gen_map`, but for now resist that temptation.
 
 #### Side Tour. Applicative Functors
 
