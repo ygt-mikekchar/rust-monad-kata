@@ -38,20 +38,30 @@ mod tests {
     fn test_odd_rands() {
         assert_eq!(rand_odd(3), (7, 4));
     }
+
+    #[test]
+    fn test_rand_pair() {
+        assert_eq!(rand_pair(1), (('a', 2), 3));
+        assert_eq!(rand_pair(2), (('b', 3), 4));
+    }
 }
 
 type Seed = u32;
 
 type Rand<T> = (T, Seed);
 
-trait Functor<T, U> {
+trait Functor<'t, T, U, F>
+    where T: 't,
+          F: 't + Fn(T) -> U {
     type Output;
-    fn map(self, f: fn(T) -> U) -> Self::Output;
+    fn map(self, f: F) -> Self::Output;
 }
 
-impl <T, U> Functor<T, U> for Rand<T> {
+impl <'t, T, U, F> Functor<'t, T, U, F> for Rand<T>
+    where T: 't,
+          F: 't + Fn(T) -> U {
     type Output = Rand<U>;
-    fn map(self, f: fn(T) -> U) -> Rand<U> {
+    fn map(self, f: F) -> Self::Output {
         (f(self.0), self.1)
     }
 }
@@ -70,6 +80,11 @@ fn rand_odd(seed: Seed) -> Rand<u32> {
 
 fn rand_letter(seed: Seed) -> Rand<char> {
     rand(seed).map(|v| i_to_a(v))
+}
+
+fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
+    let (letter, new_seed) = rand_letter(seed);
+    rand(new_seed).map(|v| (letter, v) )
 }
 
 fn i_to_a(val: u32) -> char {
