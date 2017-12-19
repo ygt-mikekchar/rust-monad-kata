@@ -49,28 +49,30 @@ type Seed = u32;
 type Rand<T> = (T, Seed);
 type Gen<T> = fn(Seed) -> Rand<T>;
 
-trait Functor<'a, A, B> {
+trait Functor<'a, A, B, F>
+    where A: 'a,
+          F: 'a + Fn(A) -> B {
     type Output;
 
-    fn map(self, f: fn(A) -> B) -> Self::Output;
+    fn map(self, F) -> Self::Output;
 }
 
-impl<'a, A, B> Functor<'a, A, B> for Rand<A>
+impl<'a, A, B, F> Functor<'a, A, B, F> for Rand<A>
     where A: 'a,
-          B: 'a {
+          F: 'a + Fn(A) -> B {
     type Output = Rand<B>;
 
-    fn map(self, f: fn(A) -> B) -> Self::Output {
+    fn map(self, f: F) -> Self::Output {
         (f(self.0), self.1)
     }
 }
 
-impl<'a, A, B> Functor<'a, A, B> for Gen<A>
+impl<'a, A, B, F> Functor<'a, A, B, F> for Gen<A>
     where A: 'a,
-          B: 'a {
+          F: 'a + Fn(A) -> B {
     type Output = Box<'a + Fn(Seed) -> Rand<B>>;
 
-    fn map(self, f: fn(A) -> B) -> Self::Output {
+    fn map(self, f: F) -> Self::Output {
         Box::new(move |seed| {
             let (val, new_seed) = self(seed);
             (f(val), new_seed)
@@ -78,12 +80,13 @@ impl<'a, A, B> Functor<'a, A, B> for Gen<A>
     }
 }
 
-fn gen_apply<'a, A, B>(genf: Box<'a + Fn(Seed) -> Rand<fn(A) -> B>>, gena: Gen<A>) -> Box<'a + Fn(Seed) -> Rand<B>>
+fn gen_apply<'a, A, B, F>(genf: Box<'a + Fn(Seed) -> Rand<F>>, gena: Gen<A>) -> Box<'a + Fn(Seed) -> Rand<B>>
     where A: 'a,
-          B: 'a {
+          B: 'a,
+          F: 'a + FnOnce(A) -> B, {
     Box::new(move |seed| {
-        let (a, s1) = gena(seed);
-        let (f, s2) = genf(s1);
+        let (f, s1) = genf(seed);
+        let (a, s2) = gena(s1);
         (f(a), s2)
     })
 }
@@ -92,7 +95,7 @@ fn gen_lift2<'a, A, B, C>(f: fn(A, B) -> C, gena: Gen<A>, genb: Gen<B>) -> Box<'
     where A: 'a,
           B: 'a,
           C: 'a {
-    let genf = (gena as Gen<A>).map(|a| { |b| f(a, b) });
+    let genf = (gena as Gen<A>).map(move |a| { move |b| f(a, b) });
     gen_apply(genf, genb)
 }
 
