@@ -9,14 +9,31 @@ many languages and I wanted to have a go at trying it with Rust.  My
 normal approach differs slightly from the original challenge, so I
 will document the steps that I suggest for Rust.
 
-Note: I think that everything in this kata so far can be done
-with the stable compiler.  It would be nice to implement `apply`
-and use it for `sequence`, but I suspect it is currently
-impossible.  I will update this kata as I learn more.  "Higher order
-types", which is what we are doing in this kata is a well known pain
-point in Rust.  I didn't know this before I started along this path,
-but even still I think this is a great exercise for discovering both
-the good things about Rust and the limitations.
+Note: I think that everything in this kata so far can be done with the
+stable compiler.  "Higher order types", which is what we are doing in
+this kata is a well known pain point in Rust.  I didn't know this
+before I started along this path, but even still I think this is a
+great exercise for discovering both the good things about Rust and the
+limitations.
+
+## How Much Rust Do I Need To Know?
+
+I did this kata knowing almost nothing about Rust.  Somebody on the
+internet posted a nice comparison between Rust and some other
+functional languages and I wanted to see how easy it would be to
+write code in that style.  I have learned quite a lot about Rust in
+the process, so in that sense it was quite successful.
+
+I've tried to smooth out a few of the tricky bits with hints along the
+way, but make no mistake: this is learning by getting into the deep
+end.  If you already have a good understanding about monads *or* a
+good understanding about Rust, you will have an easier time.  However,
+I think you can succeed without either.
+
+Expect this kata to take you a few days to complete if you are
+learning a lot of new things, but you should be able to find out how
+to do everything you need by reading the excellent Rust documentation
+(as I did).
 
 ## Pseudo-Random Number Generation
 
@@ -41,7 +58,7 @@ uniformly distributed in the desired range.
 
 ### Step 1.  Building a "Pseudo-random" generator function
 
-We could use a good random number generator to give realistic output
+We could use a good pseudo-random number generator to give realistic output
 for our kata, but there is no real need.  Instead our "pseduo-random"
 generator will be much simpler:
 
@@ -57,7 +74,9 @@ The effect is that if you call `rand(1)` you will receive `(1, 2)`.
 If you call `rand(2)` you will receive `(2, 3)`, etc.  Not a great
 random number generator, but it will be easy to test.
 
-You must write unit tests for this kata.  Since you can't easily
+You should write unit tests for this kata.  There is a lot of
+refactoring involved and it will save you a lot of time ensuring that
+you haven't broken something along the way.  Since you can't easily
 test an infinite series (and such a challenge is not what this kata
 is for), just test a couple of examples.
 
@@ -74,7 +93,7 @@ assignment, the "ownership" of the memory moves.
 
 Note: A "trait" is kind of like an interface.  It's a promise to the
 compiler that there are specific functions implemented for that data
-type.  We will talk more about traits later.
+type.  We will work with traits later.
 
 We will try to illustrate the difference simply:
 
@@ -106,8 +125,8 @@ immutable by default.  You can make a variable mutable with the `mut`
 keyword. It is fairly easy to implement this function with mutable
 variables.  It is quite challenging to make a non-ugly function
 without using `mut`.  It's worth giving it a go, but don't kill
-yourself.  The rest of this kata is discovering how to implement this
-function easily without mutating any data.
+yourself.  Most of the rest of this kata is discovering how to
+implement this function easily without mutating any data.
 
 ### Step 4. Different kinds of random values
 
@@ -165,6 +184,49 @@ We're going to implement a `Rand` functor on tuples like
 	afterwards).
   - Use the `map` functionality in `rand_even` and `rand_odd`.
 
+#### Side note: Why is it called a "Functor"?
+
+It seems like a strange name for a collection.  In Category theory, a
+"functor" is actually a "mapping" between 2 categories.  You can
+consider a category as a set of objects.  For example, the
+set of positive integers is a category.  The set of unicode characters
+is also a category.
+
+Imagine you have a set of integers from 0-9, called A.  Then imagine
+a set of integers from 1-10, called B.  We can easily "map" between
+A and B with a function like: `|x| x + 1`, called `add_one`.  Using
+`add_one` we can "map" between the categories A and B.
+
+This is what's known as a "functor" and you can probably see why it
+has a name that is similar to "function".  We usually say that "A is a
+functor", even though we don't specify the function that we are using
+to map it with.  What we mean by this is that we can easily write a
+function called `map` that will map integers from A to some other
+category, given a transforming function.
+
+To really be a functor, the `map` function must adhere to 2
+conditions:
+
+  - There must be a kind of "identity" mapping: a mapping that maps
+    from every item in the category to itself.  For numbers, that function
+    would be `|x| x + 0`.
+  - The functions must be "composable".  So if we have the functions
+    `let f = |x| x + 1` and `let g = |x| x + 2`, we could "compose"
+	the 2 functions into `let fg = |x| (x + 2) + 1`.  To be a functor,
+	`f(g(x))` must be equal to `fg(x)` for all functions `f` and `g`.
+
+Things like numbers tend to be functors because you can easily write
+`map` so that those conditions apply.
+
+You might be wondering, "Why is a functor a collection?"  Imagine a
+single number as being a "collection" of one number.  We can also
+have a set of tuples: for example the set of `(0, 0), (0, 1), (1, 0),
+(1, 1)`.  You can probably imagin that this can be a "functor" as well
+because we can easily write `map` to work on each value in the tuple.
+The same goes for arrays, strings, and many other collections.
+
+That's why we say that a collection that implements `map` is a functor.
+
 ### Step 7. What about `rand_letter`?
 
 Our `Functor` trait is pretty awesome but it's kind of pointless if we
@@ -197,12 +259,12 @@ and use `self` so that it copies the values rather than moving them.
 
 Write a function, called `rand_pair` that takes a `Seed` and outputs
 a tuple like the following: `((char, uint32), Seed)`.  For example,
-`rand_pair(1)` should return `(('a', 2), 3)`.  So basically you have
+`rand_pair(1)` should return `(('a', 2), 3)`.  Basically you have
 to use the seed in the return value from `rand_letter` as the seed
 in `rand`.
 
 Note: It will be very tempting to implement this function using
-`gen_map`, but for now resist that temptation.
+`map`, but for now resist that temptation.
 
 ### Step 10. Generator Types
 
@@ -253,22 +315,55 @@ lifetimes of objects.  Somehow you have to link the lifetime of the
 returned `Box` to the lifetimes of the `Gen<A>` and `Gen<B>` that you
 are passing to the function.
 
-### Step 12. An Inconvenient Truth
+### Step 12a. Is it Pure?
 
-If you continue on with this kata in this fashion, you will run into a
-problem.  The `Rand` type is a functor, but it is *not* an
-"applicative functor".  It is worthwhile going down this road and
-understanding why, but it's quite a long diversion.  In order to save
-time, we'll jump directly to the solution.  Later you may wish to come
-back and explore why you can't continue with the `Rand` type.
+We're going to march down the road towards what is called an
+"applicative functor".  This is one of the places where we will
+diverge a bit from the category theory nomenclature.  In category
+theory the applicative functor is apparently related to a "lax
+monoidal functor with tensorial strength" (according to wikipedia) --
+which is too hard to type.
 
-So even without knowing what an "applicative functor" is and why we need
-it, let's make a change.  To give you a slight premonition, when you
-look at the type `Rand<T>` it depends on 2 things: the result
-and the `Seed`.  In contrast, the `Gen<T>` generator types only depend
-on the `Seed`.  The result is generated from the `Seed`.  If we
-refactor our code to use `Gen<T>` instead of `Rand<T>` it will improve
-things dramatically.
+For many people appicative functors (or "applicatives" for short) are
+a bit of a mystery and several language designers intentionally short
+circuit directly from functor to monad.  I think this is a shame
+because, as you will see later, the applicative falls directly out of
+using functors.  If you don't become familiar with applicatives, then
+you will find yourself staring at some strange code and wondering how
+you got there.
+
+Before we go too far down the rabbit hole, though, let's implement a
+simple function that is required for a type to be an applicative
+functor:
+
+  - Implement `pure` for `Rand<T>`.  `pure` takes a value and puts it
+    in the functor.  For example for a vector, `pure(5)` would result
+    in `[5]`.  For `Rand<u32>` that means that we can call `pure(5)`
+	and return a `Rand` with 5 in it.
+
+Spoiler: What should the seed be in that case?  Read the next step
+to see what to do.
+
+### Step 12b. An Inconvenient Truth
+
+We have a significant problem.  The `Rand` type is a functor, but it
+is *not* an "applicative functor".  We can't write a meaningful `pure`
+function for it because not only do we need to know the "random" value
+to store, but we also need to know the value of the seed.
+
+We haven't yet come to the place where we *need* an applicative
+functor, so you might be wondering why this is a problem.  In order to
+save time and frustration, though, I'll ask you to take a bit of a
+detour here.  Later, if you want, you can go back and try to implement
+everything with `Rand<T>` to understand more fully what the problem
+is.
+
+In any case, what can we use instead of `Rand<T>`?  Well, we got stuck
+because we don't know what seed value to put into `Rand<T>`.  What if
+we could defer the choice of the seed until later?  We could have a
+kind of "lazy" `Rand<T>` that lets you fill in the seed when you have
+it.  A function would work: `fn(Seed) -> Rand<T>`.  But this is just
+`Gen<T>`!
 
 But is `Gen<T>` a functor?  What does that mean?  Is a function a
 container?  As we saw in step 11, it is!  It contains the values that
@@ -303,18 +398,12 @@ instead of one.
 
 #### Side Tour. Applicative Functors
 
-At this point I would *really* like to introduce the applicative
-functor.  Unfortunately, I think it is probably impossible to
-implement using the stable version of the Rust compiler.  But because
-I am a Rust novice, it is very possible that I'm wrong and I will
-write the details here for anyone who is interested in trying.
-
 `gen_lift2` is very similar to `gen_map`, but combines the output of 2
 `Gen<T>`s into one.  The function you pass to `gen_lift2` has a type
 signature of `fn(A, B) -> C`.  As I mentioned in the warning earlier,
 it's very tempting to use `gen_map` in the implementation.  `gen_map`
 uses a function with a signature of `fn(A) -> B`, though.  How do you
-convert from one to the other.
+convert from one to the other?
 
 In a more usual functional language, you would simply "curry" the
 value.  For example, if I am supposed to call a function like
@@ -341,8 +430,15 @@ applicative.
 
   - Write a function `gen_apply` that takes a `Gen<Fn(A) -> B>` and
     a `Gen<A>` and returns `Gen<B>`.
-  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.  Note: This is
-    likely impossible.
+  - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.
+  - Make a functor called `Applicative` that gives you `apply` and
+    `lift2`.  Make `Gen<T>` `Applicative`.
+
+Note: This is quite tricky and requires that you understand the lifetimes
+of your variables/functions.  I *think* you also need to make the function
+that you pass to `apply` `FnOnce` because you need to partially apply
+the function when you run `map`.  I'm still a Rust novice, so it's possible
+I'm missing something.
 
 ### Step 14. Vectors of Generators
 
@@ -364,7 +460,7 @@ As a usage example:
 #### Side Tour. With `apply`
 
 If you implemented `gen_apply`, try to implement `gen_sequence` using
-it.  Again, this is likely impossible.
+it.
 
 ### Step 15. On our way to a Monad
 
@@ -383,6 +479,12 @@ frequently.
     (`unit` and `return` being the most popular).  I think most people
     are settling on the name `pure` these days, so that's what I chose
     for this kata.
+
+#### Side Tour. Applicative and Traversable
+
+`pure` is traditionally part of `Applicative`.  Personally, I'm not
+entirely sure why it's put there, except that you need it to implement
+`sequence`.
 
 ### Step 16. Chaining functions
 
