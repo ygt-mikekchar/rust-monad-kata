@@ -82,7 +82,7 @@ is for), just test a couple of examples.
 
 ### Step 2. Playing with assignments
 
-Values of type `Seed` and the tuples that we have are stack allocated.
+Values of type `Seed` and the tuples that we are using are stack allocated.
 They implement a "trait" called `Copy`.  What that means is that when
 you do an assignment, the value is copied.
 
@@ -179,10 +179,15 @@ We're going to implement a `Rand` functor on tuples like
     32 bit integer and a `Seed`.
   - Write a function called `rand_map`.  It should have the following
     type signature: `fn rand_map(fn(uint32) -> uint32, Rand) -> Rand`
+  - Use the `rand_map` functionality in `rand_even` and `rand_odd`.
   - Make a trait called `Functor` with a `map` function and implement
     this function with the code from `rand_map` (you can delete `rand_map`
 	afterwards).
-  - Use the `map` functionality in `rand_even` and `rand_odd`.
+
+Note: we are going to pass functions (type `fn(...) -> ...`) into `map`
+rather than closures (type `Fn(...) -> ...`) for the moment.  This
+will allow us to avoid issues with lifetimes.  Later we will need
+to modify this to use closures, but for now stick to functions.
 
 #### Side note: Why is it called a "Functor"?
 
@@ -202,7 +207,7 @@ has a name that is similar to "function".  We usually say that "A is a
 functor", even though we don't specify the function that we are using
 to map it with.  What we mean by this is that we can easily write a
 function called `map` that will map integers from A to some other
-category, given a transforming function.
+(or the same) category, given a transforming function.
 
 To really be a functor, the `map` function must adhere to 2
 conditions:
@@ -221,7 +226,7 @@ Things like numbers tend to be functors because you can easily write
 You might be wondering, "Why is a functor a collection?"  Imagine a
 single number as being a "collection" of one number.  We can also
 have a set of tuples: for example the set of `(0, 0), (0, 1), (1, 0),
-(1, 1)`.  You can probably imagin that this can be a "functor" as well
+(1, 1)`.  You can probably imagine that this is a functor as well
 because we can easily write `map` to work on each value in the tuple.
 The same goes for arrays, strings, and many other collections.
 
@@ -233,8 +238,8 @@ Our `Functor` trait is pretty awesome but it's kind of pointless if we
 only have a single type.
 
   - Create a type for the output of `rand_letter` called `RandLetter`,
-  - Create a `map` implementation for it
-  - Refactor `rand_letter` to use that implementation.
+  - Create a `map` implementation for it so that RandLetter has the Functor trait.
+  - Refactor rand_letter to `map` from a `Rand` to a `RandLetter`.
 
 Note: This is impossible.  Why?
 
@@ -250,7 +255,7 @@ trait for Rand and RandLetter without using parametric types.
   - Implement `rand_letter` using `map`.
 
 Note: If you look at the documentation, every example sends a
-reference from `self` (i.e. `&self`) into the functions.  If you do
+reference of `self` (i.e. `&self`) into the functions.  If you do
 that, you will have to worry about lifetimes.  Because we are only
 using data types with the `Copy` trait, save yourself lots of trouble
 and use `self` so that it copies the values rather than moving them.
@@ -261,7 +266,7 @@ Write a function, called `rand_pair` that takes a `Seed` and outputs
 a tuple like the following: `((char, uint32), Seed)`.  For example,
 `rand_pair(1)` should return `(('a', 2), 3)`.  Basically you have
 to use the seed in the return value from `rand_letter` as the seed
-in `rand`.
+for `rand`.
 
 Note: It will be very tempting to implement this function using
 `map`, but for now resist that temptation.
@@ -281,6 +286,11 @@ is a gigantic PITA.
     `Seed` and returns the correct random pair.
   - Refactor `rand_pair` to use `general_pair`.
 
+Note: Again, we will eventually need to pass closures into these functions,
+but unfortunately you can't make a type alias for a closure.  Using the
+`Gen<T>` type will makes certain things easier to understand in the future,
+so don't be tempted to jump directly to closures.
+
 ### Step 11. Returning a Closure
 
 Why do we bother passing the `Seed` into `general_pair`?  `general_pair`
@@ -289,6 +299,10 @@ doesn't have to actually calculate everything immediately.
   - Don't pass the `Seed` to `general_pair`.  Instead have it return a
     closure that takes a `Seed` as a parameter.  `rand_pair` should
     look something like: `general_pair(rand_letter, rand)(seed)`.
+
+There are two spoilers here for dealing with the return type from
+`general_pair`.  It's worth trying to figure it out yourself, but
+if you get stuck, feel free to read below for some hints.
 
 Spoiler #1: For very good reasons, Rust implements functions and closures
 differently.  The type of a function is `fn(...) -> ...` The type of a
@@ -315,50 +329,56 @@ lifetimes of objects.  Somehow you have to link the lifetime of the
 returned `Box` to the lifetimes of the `Gen<A>` and `Gen<B>` that you
 are passing to the function.
 
-### Step 12a. Is it Pure?
+### Step 12. Is it Pure?
 
 We're going to march down the road towards what is called an
 "applicative functor".  This is one of the places where we will
 diverge a bit from the category theory nomenclature.  In category
 theory the applicative functor is apparently related to a "lax
-monoidal functor with tensorial strength" (according to wikipedia) --
-which is too hard to type.
+monoidal functor with tensorial strength" (according to wikipedia).
+I like to think that they went with "applicative" because the other
+name is too hard to type.
 
-For many people appicative functors (or "applicatives" for short) are
+For many people, appicative functors (or "applicatives" for short) are
 a bit of a mystery and several language designers intentionally short
 circuit directly from functor to monad.  I think this is a shame
 because, as you will see later, the applicative falls directly out of
 using functors.  If you don't become familiar with applicatives, then
-you will find yourself staring at some strange code and wondering how
+you may find yourself staring at some strange code and wondering how
 you got there.
+
+Note: this is probably less likely to happen with a language that
+doesn't natively support partial function application (like Rust),
+but I still think it's worth understanding what the applicative is
+for.
 
 Before we go too far down the rabbit hole, though, let's implement a
 simple function that is required for a type to be an applicative
 functor:
 
-  - Implement `pure` for `Rand<T>`.  `pure` takes a value and puts it
-    in the functor.  For example for a vector, `pure(5)` would result
-    in `[5]`.  For `Rand<u32>` that means that we can call `pure(5)`
-	and return a `Rand` with 5 in it.
+  - Implement `rand_pure` for `Rand<T>`.  `rand_pure` takes a value
+    and puts it in the functor.  For example for a vector, `pure(5)`
+    would result in `[5]`.  For `Rand<u32>` that means that we can
+    call `pure(5)` and return a `Rand` with 5 in it.
 
-Spoiler: What should the seed be in that case?  Read the next step
-to see what to do.
+You would be right to wonder why we are implementing this.  While it
+makes sense for a vector, does it actually make sense for a `Rand<T>`?
+What should the seed be in that case?  Play with this for a while
+and decide for yourself what `rand_pure` should do.
 
-### Step 12b. An Inconvenient Truth
+Note: Historically `pure` had many different names in various
+programming languages including `unit` and `return`.  Lately it seems
+that people are settling on the name `pure` which is why I'm using it
+in this kata.
 
-We have a significant problem.  The `Rand` type is a functor, but it
-is *not* an "applicative functor".  We can't write a meaningful `pure`
-function for it because not only do we need to know the "random" value
-to store, but we also need to know the value of the seed.
+### Step 13. An Inconvenient Truth
 
-We haven't yet come to the place where we *need* an applicative
-functor, so you might be wondering why this is a problem.  In order to
-save time and frustration, though, I'll ask you to take a bit of a
-detour here.  Later, if you want, you can go back and try to implement
-everything with `Rand<T>` to understand more fully what the problem
-is.
+In fact, the `Rand<T>` type is a functor, but it is *not* an
+"applicative functor".  We can write a `rand_pure` but not without
+considerable comprimise.  Not only do we need to know the "random"
+value to store, but we also need to know the value of the seed.
 
-In any case, what can we use instead of `Rand<T>`?  Well, we got stuck
+What can we use instead of `Rand<T>`?  Well, we got stuck
 because we don't know what seed value to put into `Rand<T>`.  What if
 we could defer the choice of the seed until later?  We could have a
 kind of "lazy" `Rand<T>` that lets you fill in the seed when you have
@@ -366,8 +386,8 @@ it.  A function would work: `fn(Seed) -> Rand<T>`.  But this is just
 `Gen<T>`!
 
 But is `Gen<T>` a functor?  What does that mean?  Is a function a
-container?  As we saw in step 11, it is!  It contains the values that
-it closes over.  You can happily implement `map` for `Gen<T>`.
+container?  Actually, it is!  It contains whatever values that it
+evaluates to.  You can happily implement `map` for `Gen<T>`.
 
   - Add the `Functor` trait to `Gen<T>` by implementing `map` for it.
   - Rewrite `rand_letter`, `rand_even` and `rand_odd` to use `map` on
@@ -381,12 +401,34 @@ not return a function.  It can only return a boxed closure.  This is
 not the same type.  We'll roll with it, but this may eventually cause
 us problems.
 
+Once you've implemented `map` for `Gen<T>` think about what it is
+doing. Does your implementation of map guarantee the 2 conditions
+for `Gen<T>` being a functor?  What would the identity function be?
+Why is the second condition especially easy to guarantee?
+
 Spoiler #1: Once you get the trait written you will find that it does
 not work.  That's because Rust does not do type inference on
 functions.  This is very unfortunate, but you can solve the problem by
 casting the generator like `(rand as Gen<u32>).map(...)`.
 
-### Step 13. Working with Pairs
+### Step 14. Pure as the Driven Snow
+
+- To show that we've gotten past our `Applicative` problem, try to
+  implement `gen_pure`.  For a `Gen<u32>`, you should be able to pass
+  a `u32` and it returns a boxed closure.  The boxed closure should
+  accept a seed and return the `u32` that we passed in earlier.
+
+Having done that, you can see that we've fixed our problem, but you
+may still be wondering *why* we need such a strange function.  You
+will see later.
+
+Note: The reason for introducting `pure` so early in the proceedings is
+simply to show that `Rand<T>` won't work without wasting too much
+time.  After completing the kata once, it can be interesting to try to
+implement everything with `Rand<T>` to get a better understanding of
+what the problem is.
+
+### Step 15. Working with Pairs
 
 It would be nice to build pairs of random values, but not just in a
 tuple.  For example, making a pair of random values in a `String`.
@@ -396,14 +438,14 @@ tuple.  For example, making a pair of random values in a `String`.
 Hint: It's very similar to `gen_map`, but with 2 `Gen<T>` values
 instead of one.
 
-#### Side Tour. Applicative Functors
+#### Step 16. Applicative Functors
 
 `gen_lift2` is very similar to `gen_map`, but combines the output of 2
-`Gen<T>`s into one.  The function you pass to `gen_lift2` has a type
-signature of `fn(A, B) -> C`.  As I mentioned in the warning earlier,
+`Gen<T>`s into one.  The function you pass to `gen_lift2` should have a type
+signature of `fn(A, B) -> C`.  Similar to `general_pair`,
 it's very tempting to use `gen_map` in the implementation.  `gen_map`
-uses a function with a signature of `fn(A) -> B`, though.  How do you
-convert from one to the other?
+uses a function with a signature of `fn(A) -> B`, though.  If we could
+somehow convert `fn(A, B) -> C` into `fn(A) -> B`, then we could use it.
 
 In a more usual functional language, you would simply "curry" the
 value.  For example, if I am supposed to call a function like
@@ -424,14 +466,13 @@ new function wrapped in a `Gen`.
 What we need now is a function that can apply the *second* (and
 potentially subsequent) parameters to the function.  That function is
 called `apply`.  If you can write `apply` for your functor, then you
-have an "applicative functor".  Surprisingly, not all functors are
-applicative.  In fact, `Rand` is an example of a functor that is not
+have an "applicative functor".  As we saw, not every functor is
 applicative.
 
   - Write a function `gen_apply` that takes a `Gen<Fn(A) -> B>` and
     a `Gen<A>` and returns `Gen<B>`.
   - Refactor `gen_lift2` to use `gen_map` and `gen_apply`.
-  - Make a functor called `Applicative` that gives you `apply` and
+  - Make a functor called `Applicative` that gives you `apply`, `pure` and
     `lift2`.  Make `Gen<T>` `Applicative`.
 
 Note: This is quite tricky and requires that you understand the lifetimes
@@ -440,7 +481,7 @@ that you pass to `apply` `FnOnce` because you need to partially apply
 the function when you run `map`.  I'm still a Rust novice, so it's possible
 I'm missing something.
 
-### Step 14. Vectors of Generators
+### Step 17. Vectors of Generators
 
 Being able to generate a pair of random values is slightly useful.
 However, we really want to be able to generate an arbitrarily sized
@@ -457,36 +498,53 @@ As a usage example:
   assert_eq!(vec![1, 2, 3, 4, 5], gen_sequence(gs)(1).0);
 ```
 
-#### Side Tour. With `apply`
+  Note: you can implement this with and without `apply`.  This is
+  because Rust iterators give you enough capability to avoid using
+  `apply` in this instance.  Implement both so you can see the
+  difference.
 
-If you implemented `gen_apply`, try to implement `gen_sequence` using
-it.
-
-### Step 15. On our way to a Monad
+### Step 18. Cleaning Up
 
 You may think the battle has been won at this point, and you are
-correct.  It is now easy to do what we wanted to do.  However, there
-are a few things to clean up.
+correct.
 
-When you implemented `gen_sequence` you will have had to deal with the
-case where the vector passed to the function is empty (you *did* handle
-that didn't you?).  In that case you will have had to make a `Gen`
-that held an empty array.  This is a situation that comes up
-frequently.
+  - Refactor `five_rands` and `three_rand_letters` using
+    `gen_sequence`.  Do not use `mut`.
 
-  - Write a function called `gen_pure` that takes any `A` and returns
-    a `Gen<A>`.  Note: historically `pure` has gone by many names
-    (`unit` and `return` being the most popular).  I think most people
-    are settling on the name `pure` these days, so that's what I chose
-    for this kata.
+We may need to clean up a bit.  When you implemented `gen_sequence`
+you will have had to deal with the case where the vector passed to the
+function is empty (you *did* handle that didn't you?).  In that case
+you will have had to make a `Gen` that held an empty array.
 
-#### Side Tour. Applicative and Traversable
+  - Use `pure` for that case if you haven't already.
 
-`pure` is traditionally part of `Applicative`.  Personally, I'm not
-entirely sure why it's put there, except that you need it to implement
-`sequence`.
+This is why you need `pure`.
 
-### Step 16. Chaining functions
+#### Step 19. Traversable
+
+`Applicative` is a natural consequence of wanting to use functors with
+functions that have more than one parameter.  Usually `apply` is used
+as a kind of stepping stone to get what you actually want.  We saw
+that when we implemented `gen_sequence`.
+
+`sequence` converts a vector containing applicative functors to an
+applicative functor that contains a vector.  It is normally paired
+with another function called `traverse`.
+
+  - Implement `gen_traverse`:  It takes a `fb(A) -> Gen(A)`, a `Vec<A>`
+    and returns `Gen<Vec<A>>`.
+  - Create a `Traversable` trait with `sequence` and `traverse`.
+
+Note: `traverse` can always be implemented with `sequence` and
+vice versa.  Which one you implement first when you are making
+a `Traversable` is up to you.
+
+Special Note: This version of `Traversable` is actually incorrect.
+`Traversable` works on *any* traversable functor, not just vectors.
+However, to keep this already very long kata within bounds, we will
+just implement it for vectors.
+
+### Step 20. Chaining functions
 
 Note: This section needs some work to make it more obvious why you
 want to do this.
