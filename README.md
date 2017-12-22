@@ -375,7 +375,7 @@ in this kata.
 
 In fact, the `Rand<T>` type is a functor, but it is *not* an
 "applicative functor".  We can write a `rand_pure` but not without
-considerable comprimise.  Not only do we need to know the "random"
+considerable compromise.  Not only do we need to know the "random"
 value to store, but we also need to know the value of the seed.
 
 What can we use instead of `Rand<T>`?  Well, we got stuck
