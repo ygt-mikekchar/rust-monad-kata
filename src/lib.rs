@@ -74,6 +74,18 @@ impl <'t, T, U, F> Functor<'t, T, U, F> for Rand<T>
     }
 }
 
+impl <'t, T, U, F> Functor<'t, T, U, F> for Gen<T>
+    where T: 't,
+          F: 't + Fn(T) -> U {
+    type Output = Box<'t + Fn(Seed) -> (U, Seed)>;
+    fn map(self, f: F) -> Self::Output {
+        Box::new(move |s: Seed| {
+            let (v, seed) = self(s);
+            (f(v), seed)
+        })
+    }
+}
+
 fn rand_pure<T>(t: T) -> Rand<T> {
     (t, 1)
 }
@@ -83,14 +95,15 @@ fn rand(seed: Seed) -> Rand<u32> {
 }
 
 fn rand_even(seed: Seed) -> Rand<u32> {
-    rand(seed).map(|v| v * 2)
+    (rand as Gen<u32>).map(|v| v * 2)(seed)
 }
 
 fn rand_odd(seed: Seed) -> Rand<u32> {
-    rand(seed).map(|v| v * 2 + 1)
+    (rand as Gen<u32>).map(|v| v * 2 + 1)(seed)
 }
 
 fn rand_letter(seed: Seed) -> Rand<char> {
+    // (rand as Gen<char>).map(|v| i_to_a(v))(seed)
     rand(seed).map(|v| i_to_a(v))
 }
 
