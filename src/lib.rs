@@ -50,6 +50,13 @@ mod tests {
         assert_eq!(rand_pure(1), (1, 1));
         assert_eq!(rand_pure(2), (2, 1));
     }
+
+    #[test]
+    fn test_gen_pure() {
+        assert_eq!(gen_pure(1)(1), (1, 2));
+        assert_eq!(gen_pure(2)(1), (2, 2));
+        assert_eq!(gen_pure(3)(2), (3, 3));
+    }
 }
 
 type Seed = u32;
@@ -86,10 +93,6 @@ impl <'t, T, U, F> Functor<'t, T, U, F> for Gen<T>
     }
 }
 
-fn rand_pure<T>(t: T) -> Rand<T> {
-    (t, 1)
-}
-
 fn rand(seed: Seed) -> Rand<u32> {
     (seed, seed + 1)
 }
@@ -109,6 +112,14 @@ fn rand_letter(seed: Seed) -> Rand<char> {
 
 fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
     general_pair(rand_letter, rand)(seed)
+}
+
+fn gen_pure<'t>(v: u32) -> Box<'t + Fn(Seed) -> (u32, Seed)> {
+    (rand as Gen<u32>).map(|v| v )
+}
+
+fn rand_pure<T>(t: T) -> Rand<T> {
+    (t, 1)
 }
 
 fn general_pair<'t, A: 't, B: 't>(gena: Gen<A>, genb: Gen<B>) -> Box<'t + Fn(Seed) -> Rand<(A, B)>> {
