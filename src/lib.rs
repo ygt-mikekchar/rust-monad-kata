@@ -44,6 +44,12 @@ mod tests {
         assert_eq!(rand_pair(1), (('a', 2), 3));
         assert_eq!(rand_pair(2), (('b', 3), 4));
     }
+
+    #[test]
+    fn test_rand_pure() {
+        assert_eq!(rand_pure(1), (1, 1));
+        assert_eq!(rand_pure(2), (2, 1));
+    }
 }
 
 type Seed = u32;
@@ -66,6 +72,10 @@ impl <'t, T, U, F> Functor<'t, T, U, F> for Rand<T>
     fn map(self, f: F) -> Self::Output {
         (f(self.0), self.1)
     }
+}
+
+fn rand_pure<T>(t: T) -> Rand<T> {
+    (t, 1)
 }
 
 fn rand(seed: Seed) -> Rand<u32> {
