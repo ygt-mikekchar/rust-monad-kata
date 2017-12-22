@@ -50,6 +50,8 @@ type Seed = u32;
 
 type Rand<T> = (T, Seed);
 
+type Gen<T> = fn(Seed) -> (T, Seed);
+
 trait Functor<'t, T, U, F>
     where T: 't,
           F: 't + Fn(T) -> U {
@@ -83,8 +85,13 @@ fn rand_letter(seed: Seed) -> Rand<char> {
 }
 
 fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
-    let (letter, new_seed) = rand_letter(seed);
-    rand(new_seed).map(|v| (letter, v) )
+    general_pair(rand_letter, rand, seed)
+}
+
+fn general_pair<A, B>(gena: Gen<A>, genb: Gen<B>, seed: Seed) -> Rand<(A, B)> {
+    let (a, seed_a) = gena(seed);
+    let (b, seed_b) = genb(seed_a);
+    ((a, b), seed_b)
 }
 
 fn i_to_a(val: u32) -> char {
