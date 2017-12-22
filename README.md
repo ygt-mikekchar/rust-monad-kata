@@ -339,7 +339,7 @@ monoidal functor with tensorial strength" (according to wikipedia).
 I like to think that they went with "applicative" because the other
 name is too hard to type.
 
-For many people, appicative functors (or "applicatives" for short) are
+For many people, applicative functors (or "applicatives" for short) are
 a bit of a mystery and several language designers intentionally short
 circuit directly from functor to monad.  I think this is a shame
 because, as you will see later, the applicative falls directly out of
