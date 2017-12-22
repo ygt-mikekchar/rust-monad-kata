@@ -85,13 +85,15 @@ fn rand_letter(seed: Seed) -> Rand<char> {
 }
 
 fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
-    general_pair(rand_letter, rand, seed)
+    general_pair(rand_letter, rand)(seed)
 }
 
-fn general_pair<A, B>(gena: Gen<A>, genb: Gen<B>, seed: Seed) -> Rand<(A, B)> {
-    let (a, seed_a) = gena(seed);
-    let (b, seed_b) = genb(seed_a);
-    ((a, b), seed_b)
+fn general_pair<'t, A: 't, B: 't>(gena: Gen<A>, genb: Gen<B>) -> Box<'t + Fn(Seed) -> Rand<(A, B)>> {
+    Box::new(move |s: Seed| {
+             let (a, seed_a) = gena(s);
+             let (b, seed_b) = genb(seed_a);
+             ((a, b), seed_b)
+    })
 }
 
 fn i_to_a(val: u32) -> char {
