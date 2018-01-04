@@ -106,16 +106,15 @@ fn rand_odd(seed: Seed) -> Rand<u32> {
 }
 
 fn rand_letter(seed: Seed) -> Rand<char> {
-    // (rand as Gen<char>).map(|v| i_to_a(v))(seed)
-    rand(seed).map(|v| i_to_a(v))
+    (rand as Gen<u32>).map(|v| i_to_a(v))(seed)
 }
 
 fn rand_pair(seed: Seed) -> Rand<(char, u32)> {
     general_pair(rand_letter, rand)(seed)
 }
 
-fn gen_pure<'t>(v: u32) -> Box<'t + Fn(Seed) -> (u32, Seed)> {
-    (rand as Gen<u32>).map(|v| v )
+fn gen_pure(v: u32) -> Box<Fn(Seed) -> Rand<u32>> {
+    (rand as Gen<u32>).map(move |_v| v )
 }
 
 fn rand_pure<T>(t: T) -> Rand<T> {
