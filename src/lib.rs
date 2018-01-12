@@ -57,6 +57,20 @@ mod tests {
         assert_eq!(gen_pure(2)(1), (2, 2));
         assert_eq!(gen_pure(3)(2), (3, 3));
     }
+
+    #[test]
+    fn test_gen_lift2() {
+        let (res, seed) = gen_lift2(concat, rand_odd, rand_even)(0);
+        assert_eq!(String::from(res), "ab");
+        assert_eq!(seed, 2);
+    }
+}
+
+fn concat(a: u32, b: u32) -> String {
+    let mut str = String::from("");
+    str.push(i_to_a(a));
+    str.push(i_to_a(b));
+    str
 }
 
 type Seed = u32;
@@ -91,6 +105,17 @@ impl <'t, T, U, F> Functor<'t, T, U, F> for Gen<T>
             (f(v), seed)
         })
     }
+}
+
+fn gen_lift2<'t, F, T, U, V>(f: F, t: Gen<T>, u: Gen<U>) -> Box<'t + Fn(Seed) -> Rand<V>>
+    where T: 't,
+          U: 't,
+          F: 't + Fn(T, U) -> V {
+    Box::new(move |s: Seed| {
+        let (v1, seed1) = t(s);
+        let (v2, seed2) = u(seed1);
+        (f(v1, v2), seed2)
+    })
 }
 
 fn rand(seed: Seed) -> Rand<u32> {
