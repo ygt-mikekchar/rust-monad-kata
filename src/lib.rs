@@ -64,6 +64,20 @@ mod tests {
         assert_eq!(String::from(res), "ab");
         assert_eq!(seed, 2);
     }
+
+    #[test]
+    fn test_gen_apply() {
+        let f = |_: Seed| { rand_pure(convert) };
+        let (res, seed) = gen_apply(f, rand_odd)(0);
+        assert_eq!(String::from(res), "a");
+        assert_eq!(seed, 2);
+    }
+}
+
+fn convert(a: u32) -> String {
+    let mut str = String::from("");
+    str.push(i_to_a(a));
+    str
 }
 
 fn concat(a: u32, b: u32) -> String {
@@ -77,7 +91,7 @@ type Seed = u32;
 
 type Rand<T> = (T, Seed);
 
-type Gen<T> = fn(Seed) -> (T, Seed);
+type Gen<T> = fn(Seed) -> Rand<T>;
 
 trait Functor<'t, T, U, F>
     where T: 't,
@@ -115,6 +129,16 @@ fn gen_lift2<'t, F, T, U, V>(f: F, t: Gen<T>, u: Gen<U>) -> Box<'t + Fn(Seed) ->
         let (v1, seed1) = t(s);
         let (v2, seed2) = u(seed1);
         (f(v1, v2), seed2)
+    })
+}
+
+fn gen_apply<'t, T, U, F>(gen_f: Gen<F>, gen_t: Gen<T>) -> Box<'t + Fn(Seed) -> Rand<U>>
+    where T: 't,
+          U: 't,
+          F: 't + Fn(T) -> U {
+    Box::new(move |s :Seed| {
+        let (func, seed1) = gen_f(s);
+        gen_t.map(func)(seed1)
     })
 }
 
