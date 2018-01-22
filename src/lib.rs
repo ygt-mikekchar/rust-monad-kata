@@ -64,6 +64,18 @@ mod tests {
         assert_eq!(String::from(res), "ab");
         assert_eq!(seed, 2);
     }
+
+    #[test]
+    fn test_gen_sequence() {
+        let gs = vec![rand, rand, rand, rand, rand];
+        assert_eq!(vec![1, 2, 3, 4, 5], gen_sequence(gs)(1).0);
+    }
+
+    #[test]
+    fn test_gen_even_sequence() {
+        let gs = vec![rand_even, rand_even, rand_even, rand_even, rand_even];
+        assert_eq!(vec![2, 4, 6, 8, 10], gen_sequence(gs)(2).0);
+    }
 }
 
 fn concat(a: u32, b: u32) -> String {
@@ -123,6 +135,18 @@ fn gen_apply<'t, T, U, F>(gen_f: Box<'t + Fn(Seed) -> Rand<F>>, gen_t: Gen<T>) -
         let (func, seed1) = gen_f(s);
         let (a, seed2) = gen_t(seed1);
         (func(a), seed2)
+    })
+}
+
+fn gen_sequence<'t, T>(v: Vec<Gen<T>>) -> Box<'t + Fn(Seed) -> Rand<Vec<T>>>
+    where T: 't {
+    Box::new(move |s: Seed| {
+        let vals = v.iter().map(|x| {
+            let (val, seed) = x(s);
+            s += seed;
+            val
+        }).collect();
+        (vals, s)
     })
 }
 
